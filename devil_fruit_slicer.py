@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+"""Devil Fruit Slicer - A Fruit Ninja style game with One Piece devil fruits."""
+
 import pygame
 import random
 import math
@@ -21,39 +24,81 @@ ORANGE = (243, 156, 18)
 YELLOW = (241, 196, 15)
 GREEN = (46, 204, 113)
 
-# Get the directory where images are stored
-IMAGES_DIR = "/mnt/user-data/uploads"
+# Get the directory where the script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(SCRIPT_DIR, "assets")
+FRUITS_DIR = os.path.join(ASSETS_DIR, "fruits")
+ITEMS_DIR = os.path.join(ASSETS_DIR, "items")
+SOUNDS_DIR = os.path.join(ASSETS_DIR, "sounds")
 
 # Fruit definitions with image paths
 FRUITS = [
-    {'name': 'Purple Devil Fruit', 'image': '596e67f8f559d2865824bb7554d0ea3b.jpg', 'color': (147, 112, 219), 'key': pygame.K_p, 'letter': 'P'},
-    {'name': 'Fire Devil Fruit', 'image': '858dacd62efdb4774784e9dbebe174f3.jpg', 'color': (255, 140, 0), 'key': pygame.K_f, 'letter': 'F'},
-    {'name': 'Heart Devil Fruit', 'image': '1113a891663c7a600ac4536c94554a1d.jpg', 'color': (255, 71, 87), 'key': pygame.K_h, 'letter': 'H'},
-    {'name': 'Blue Devil Fruit', 'image': 'téléchargement.png', 'color': (100, 149, 237), 'key': pygame.K_b, 'letter': 'B'},
+    {
+        'name': 'Purple Devil Fruit',
+        'image': os.path.join(FRUITS_DIR, 'purple_devil_fruit.png'),
+        'color': (147, 112, 219),
+        'key': pygame.K_p,
+        'letter': 'P'
+    },
+    {
+        'name': 'Fire Devil Fruit',
+        'image': os.path.join(FRUITS_DIR, 'fire_devil_fruit.png'),
+        'color': (255, 140, 0),
+        'key': pygame.K_f,
+        'letter': 'F'
+    },
+    {
+        'name': 'Heart Devil Fruit',
+        'image': os.path.join(FRUITS_DIR, 'heart_devil_fruit.png'),
+        'color': (255, 71, 87),
+        'key': pygame.K_h,
+        'letter': 'H'
+    },
+    {
+        'name': 'Blue Devil Fruit',
+        'image': os.path.join(FRUITS_DIR, 'blue_devil_fruit.png'),
+        'color': (100, 149, 237),
+        'key': pygame.K_b,
+        'letter': 'B'
+    },
 ]
 
 SPECIAL_ITEMS = [
-    {'name': 'Ice Cube', 'image': '9f542496ae8dbf45ed1983b2e0aa2ab1.jpg', 'color': (135, 206, 235), 'key': pygame.K_i, 'letter': 'I', 'type': 'ice'},
-    {'name': 'Bomb', 'image': 'e9a1f569a0005ff14f58fdfbdf5ede68.jpg', 'color': (44, 62, 80), 'key': pygame.K_x, 'letter': 'X', 'type': 'bomb'},
+    {
+        'name': 'Ice Cube',
+        'image': os.path.join(ITEMS_DIR, 'ice_cube.png'),
+        'color': (135, 206, 235),
+        'key': pygame.K_i,
+        'letter': 'I',
+        'type': 'ice'
+    },
+    {
+        'name': 'Bomb',
+        'image': os.path.join(ITEMS_DIR, 'bomb.png'),
+        'color': (44, 62, 80),
+        'key': pygame.K_x,
+        'letter': 'X',
+        'type': 'bomb'
+    },
 ]
 
 
 class ImageCache:
-    """Cache for loading and storing fruit images"""
+    """Cache for loading and storing fruit images."""
+
     def __init__(self):
         self.images = {}
         self.load_images()
-    
+
     def load_images(self):
-        """Load all fruit images"""
+        """Load all fruit images."""
         all_items = FRUITS + SPECIAL_ITEMS
-        
+
         for item in all_items:
             if 'image' in item:
                 try:
-                    image_path = os.path.join(IMAGES_DIR, item['image'])
-                    original_image = pygame.image.load(image_path)
-                    # Scale to reasonable size
+                    image_path = item['image']
+                    original_image = pygame.image.load(image_path).convert_alpha()
                     scaled_image = pygame.transform.smoothscale(original_image, (80, 80))
                     self.images[item['name']] = scaled_image
                     print(f"✓ Loaded: {item['name']}")
@@ -63,117 +108,177 @@ class ImageCache:
                     surf = pygame.Surface((80, 80), pygame.SRCALPHA)
                     pygame.draw.circle(surf, item['color'], (40, 40), 35)
                     self.images[item['name']] = surf
-    
+
     def get_image(self, name):
-        """Get cached image"""
+        """Get cached image."""
         return self.images.get(name)
 
 
+# Sound system (module-level)
+SOUND_FILES = {
+    'slice': 'gomu_gomu_no.mp3',
+    'combo': 'combo.mp3',
+    'bomb': 'bomb.mp3',
+    'freeze': 'freeze.mp3',
+    'miss': 'cliffhanger.mp3',
+    'gameover': 'kaido_laugh.mp3',
+    'start': 'ringstone.mp3',
+    'menu_music': 'harbour_village.mp3',
+}
+
+sounds = {}
+sounds_enabled = True
+
+
+def init_sounds():
+    """Initialize audio mixer and load sounds."""
+    global sounds, sounds_enabled
+    try:
+        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+        print("Audio mixer initialized")
+    except pygame.error as e:
+        print(f"Warning: Could not initialize audio mixer: {e}")
+        sounds_enabled = False
+        return
+
+    for name, filename in SOUND_FILES.items():
+        filepath = os.path.join(SOUNDS_DIR, filename)
+        try:
+            if os.path.exists(filepath):
+                sound = pygame.mixer.Sound(filepath)
+                sound.set_volume(0.7)
+                sounds[name] = sound
+                print(f"♪ Loaded: {name}")
+            else:
+                print(f"♪ Not found: {filename} (skipped)")
+        except pygame.error as e:
+            print(f"♪ Error loading {name}: {e}")
+
+
+def play_sound(name):
+    """Play a sound effect by name."""
+    if sounds_enabled and name in sounds:
+        sounds[name].play()
+
+
+def play_music(name, loop=True):
+    """Play background music."""
+    filepath = os.path.join(SOUNDS_DIR, SOUND_FILES.get(name, name))
+    if os.path.exists(filepath):
+        try:
+            pygame.mixer.music.load(filepath)
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1 if loop else 0)
+        except pygame.error as e:
+            print(f"♪ Music error: {e}")
+
+
+def stop_music():
+    """Stop background music."""
+    pygame.mixer.music.stop()
+
+
 class Fruit:
+    """Represents a fruit or special item in the game."""
+
     def __init__(self, fruit_data, x, y, image_cache):
         self.data = fruit_data
-        self.start_x = x
         self.x = x
         self.y = y
-        
-        # Physics for parabolic arc (like real fruit ninja!)
-        self.velocity_y = random.uniform(-12, -18)  # Initial upward velocity (negative = up)
-        self.velocity_x = random.uniform(-4, 4)  # Horizontal velocity
-        self.gravity = 0.5  # Gravity pulls down
-        
+
+        # Physics for parabolic arc
+        self.velocity_y = random.uniform(-12, -18)
+        self.velocity_x = random.uniform(-4, 4)
+        self.gravity = 0.25
+
         self.rotation = random.uniform(0, 360)
-        self.rotation_speed = random.uniform(-8, 8)
+        self.rotation_speed = random.uniform(-5, 5)
         self.size = 80
         self.sliced = False
         self.slice_time = 0
         self.image_cache = image_cache
-        
-        # Get the base image
+
         self.base_image = image_cache.get_image(fruit_data['name'])
-        
+
     def update(self, frozen=False):
+        """Update fruit position and rotation."""
         if not frozen and not self.sliced:
-            # Apply gravity to create parabolic arc
-            self.velocity_y += self.gravity  # Gravity accelerates downward
-            self.y += self.velocity_y  # Update vertical position
-            self.x += self.velocity_x  # Update horizontal position
-            self.rotation += self.rotation_speed  # Rotate fruit
-            
+            self.velocity_y += self.gravity
+            self.y += self.velocity_y
+            self.x += self.velocity_x
+            self.rotation += self.rotation_speed
+
     def draw(self, screen, font):
+        """Draw the fruit on screen."""
         if self.sliced:
-            # Slice animation
             elapsed = pygame.time.get_ticks() - self.slice_time
             alpha = max(0, 255 - (elapsed * 255 // 500))
             scale = 1 + (elapsed / 500)
-            
+
             if alpha > 0 and self.base_image:
-                # Scale and rotate
                 size = int(self.size * scale)
                 rotated = pygame.transform.rotate(self.base_image, self.rotation)
                 scaled = pygame.transform.smoothscale(rotated, (size, size))
-                
-                # Apply alpha
                 scaled.set_alpha(alpha)
-                
+
                 # Draw glow effect
                 for i in range(3):
                     glow_size = size + (3 - i) * 15
                     glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
                     glow_alpha = alpha // (i + 2)
                     color_with_alpha = (*self.data['color'], glow_alpha)
-                    pygame.draw.circle(glow_surf, color_with_alpha, (glow_size // 2, glow_size // 2), glow_size // 2)
+                    pygame.draw.circle(glow_surf, color_with_alpha,
+                                       (glow_size // 2, glow_size // 2), glow_size // 2)
                     screen.blit(glow_surf, (self.x - glow_size // 2, self.y - glow_size // 2))
-                
-                # Draw sliced fruit
+
                 rect = scaled.get_rect(center=(int(self.x), int(self.y)))
                 screen.blit(scaled, rect)
-            
+
             return elapsed < 500
         else:
-            # Draw rotating fruit
             if self.base_image:
                 # Outer glow
                 glow_surf = pygame.Surface((self.size + 30, self.size + 30), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*self.data['color'], 80), (self.size // 2 + 15, self.size // 2 + 15), self.size // 2 + 15)
+                pygame.draw.circle(glow_surf, (*self.data['color'], 80),
+                                   (self.size // 2 + 15, self.size // 2 + 15),
+                                   self.size // 2 + 15)
                 screen.blit(glow_surf, (self.x - self.size // 2 - 15, self.y - self.size // 2 - 15))
-                
+
                 # Rotate image
                 rotated_image = pygame.transform.rotate(self.base_image, self.rotation)
                 rect = rotated_image.get_rect(center=(int(self.x), int(self.y)))
                 screen.blit(rotated_image, rect)
-                
+
                 # Letter label below fruit
                 letter_surface = font.render(self.data['letter'], True, WHITE)
                 letter_rect = letter_surface.get_rect(center=(int(self.x), int(self.y) + 50))
-                
-                # Letter background with special styling for bomb/ice
+
                 bg_size = 35
                 bg_rect = pygame.Rect(0, 0, bg_size, bg_size)
                 bg_rect.center = letter_rect.center
-                
+
                 if self.data.get('type') == 'bomb':
-                    # Red warning for bomb
                     pygame.draw.rect(screen, RED, bg_rect, border_radius=8)
                     pygame.draw.rect(screen, (150, 0, 0), bg_rect, 3, border_radius=8)
                 elif self.data.get('type') == 'ice':
-                    # Blue glow for ice
                     pygame.draw.rect(screen, (173, 216, 230), bg_rect, border_radius=8)
                     pygame.draw.rect(screen, self.data['color'], bg_rect, 3, border_radius=8)
                 else:
-                    # Normal fruit
                     pygame.draw.rect(screen, BLACK, bg_rect, border_radius=8)
                     pygame.draw.rect(screen, self.data['color'], bg_rect, 3, border_radius=8)
-                
+
                 screen.blit(letter_surface, letter_rect)
-            
+
             return True
-    
+
     def is_missed(self):
-        # Fruit is missed if it falls below screen
+        """Check if fruit fell below screen without being sliced."""
         return self.y > SCREEN_HEIGHT + self.size and not self.sliced
 
 
 class ParticleEffect:
+    """Particle effect for sliced fruits."""
+
     def __init__(self, x, y, color):
         self.particles = []
         for _ in range(20):
@@ -188,63 +293,72 @@ class ParticleEffect:
                 'color': color,
                 'size': random.randint(3, 7)
             })
-    
+
     def update(self):
+        """Update particle positions."""
         for p in self.particles:
             p['x'] += p['vx']
             p['y'] += p['vy']
-            p['vy'] += 0.3  # Gravity
+            p['vy'] += 0.3
             p['life'] -= 5
         self.particles = [p for p in self.particles if p['life'] > 0]
-    
+
     def draw(self, screen):
+        """Draw particles on screen."""
         for p in self.particles:
             alpha = max(0, p['life'])
             color = (*p['color'], alpha)
             surf = pygame.Surface((p['size'] * 2, p['size'] * 2), pygame.SRCALPHA)
             pygame.draw.circle(surf, color, (p['size'], p['size']), p['size'])
-            screen.blit(surf, (int(p['x']), int(p['y'])))
-    
+            screen.blit(surf, (int(p['x']) - p['size'], int(p['y']) - p['size']))
+
     def is_finished(self):
+        """Check if all particles have faded."""
         return len(self.particles) == 0
 
 
 class Game:
+    """Main game class."""
+
     def __init__(self):
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Devil Fruit Slicer")
         self.clock = pygame.time.Clock()
-        
-        # Load images
+
         print("Loading Devil Fruit images...")
         self.image_cache = ImageCache()
         print("All images loaded!\n")
-        
+
+        print("Loading sounds...")
+        init_sounds()
+        print("Sound loading complete!\n")
+
         # Fonts
         self.title_font = pygame.font.Font(None, 90)
         self.large_font = pygame.font.Font(None, 56)
         self.medium_font = pygame.font.Font(None, 40)
         self.small_font = pygame.font.Font(None, 28)
         self.letter_font = pygame.font.Font(None, 32)
-        
+
         # Game state
-        self.state = 'menu'  # menu, playing, gameover
+        self.state = 'menu'
+        play_music('menu_music', loop=False)
         self.score = 0
         self.strikes = 0
         self.combo = 0
         self.combo_display_time = 0
         self.frozen_time = 0
-        
+
         self.fruits = []
         self.particles = []
         self.spawn_timer = 0
-        self.spawn_interval = 1200  # milliseconds
-        
-        # Animation variables
-        self.menu_pulse = 0
+        self.spawn_interval = 1200
+        self.min_spawn_interval = 400
+
         self.strike_shake = [0, 0, 0]
-        
+
     def reset_game(self):
+        """Reset game state for new game."""
         self.score = 0
         self.strikes = 0
         self.combo = 0
@@ -253,113 +367,111 @@ class Game:
         self.fruits = []
         self.particles = []
         self.spawn_timer = pygame.time.get_ticks()
-        
+        self.spawn_interval = 1200
+
     def spawn_fruit(self):
-        # 20% chance for special item
+        """Spawn a new fruit or special item."""
         if random.random() < 0.2:
             fruit_data = random.choice(SPECIAL_ITEMS)
         else:
             fruit_data = random.choice(FRUITS)
-        
-        # Spawn from bottom at random horizontal position
+
         x = random.randint(100, SCREEN_WIDTH - 100)
         y = SCREEN_HEIGHT + 50
-        
+
         self.fruits.append(Fruit(fruit_data, x, y, self.image_cache))
-    
+
     def slice_fruits(self, key):
+        """Handle fruit slicing when key is pressed."""
         sliced_count = 0
         sliced_fruits = []
-        
+
         for fruit in self.fruits:
             if fruit.data['key'] == key and not fruit.sliced:
                 fruit.sliced = True
                 fruit.slice_time = pygame.time.get_ticks()
                 sliced_fruits.append(fruit)
                 sliced_count += 1
-                
-                # Create particle effect
                 self.particles.append(ParticleEffect(fruit.x, fruit.y, fruit.data['color']))
-        
+
         if sliced_count > 0:
-            # Check for bombs
             bombs = [f for f in sliced_fruits if f.data.get('type') == 'bomb']
             if bombs:
+                play_sound('bomb')
                 self.state = 'gameover'
-                # Big explosion effect
                 for bomb in bombs:
                     for _ in range(3):
                         self.particles.append(ParticleEffect(bomb.x, bomb.y, RED))
+                play_sound('gameover')
                 return
-            
-            # Check for ice
+
             ice = [f for f in sliced_fruits if f.data.get('type') == 'ice']
             if ice:
-                self.frozen_time = pygame.time.get_ticks() + 4000  # 4 seconds freeze
-            
-            # Count regular fruits
+                self.frozen_time = pygame.time.get_ticks() + 4000
+                play_sound('freeze')
+
             regular_fruits = [f for f in sliced_fruits if 'type' not in f.data]
-            
-            if regular_fruits:
-                if sliced_count == 1:
+            fruit_count = len(regular_fruits)
+
+            if fruit_count > 0:
+                if fruit_count == 1:
                     self.score += 1
+                    play_sound('slice')
                 else:
-                    self.score += sliced_count
-                    self.combo = sliced_count
+                    # Combo bonus: 2 fruits = 3pts, 3 fruits = 6pts, etc.
+                    combo_bonus = fruit_count * (fruit_count + 1) // 2
+                    self.score += combo_bonus
+                    self.combo = fruit_count
                     self.combo_display_time = pygame.time.get_ticks()
-    
+                    play_sound('combo')
+
     def draw_cloud(self, screen, x, y, width, height):
-        # Draw a simple cloud
+        """Draw a decorative cloud."""
         pygame.draw.ellipse(screen, WHITE, (x, y + height // 3, width // 3, height // 2))
         pygame.draw.ellipse(screen, WHITE, (x + width // 3, y, width // 2, height))
         pygame.draw.ellipse(screen, WHITE, (x + width // 2, y + height // 3, width // 2, height // 2))
-    
+
     def draw_menu(self):
+        """Draw the main menu screen."""
         self.screen.fill(SKY_BLUE)
-        
-        # Draw clouds
+
         for i in range(5):
             cloud_x = (i * 250 + (pygame.time.get_ticks() // 50) % 250) % SCREEN_WIDTH
             self.draw_cloud(self.screen, cloud_x, 100 + i * 80, 120, 60)
-        
-        # Title
+
         title_text = "DEVIL FRUIT"
         subtitle_text = "SLICER"
-        
-        # Animated glow
+
         glow_intensity = abs(math.sin(pygame.time.get_ticks() / 500)) * 20
-        
-        # Draw title with outline and glow
+
         title_surf = self.title_font.render(title_text, True, ORANGE)
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 120))
-        
-        # Glow effect
+
         for offset in range(10, 0, -2):
+            glow_alpha = 50 + offset * 10
             glow_color = (255, int(165 + glow_intensity), 0)
             glow_surf = self.title_font.render(title_text, True, glow_color)
-            glow_rect = glow_surf.get_rect(center=(SCREEN_WIDTH // 2 + 3, 120 + 3))
+            glow_surf.set_alpha(glow_alpha)
+            glow_rect = glow_surf.get_rect(center=(SCREEN_WIDTH // 2 + offset // 3, 120 + offset // 3))
             self.screen.blit(glow_surf, glow_rect)
-        
-        # Outline
+
         for dx, dy in [(-3, -3), (-3, 3), (3, -3), (3, 3)]:
             outline_surf = self.title_font.render(title_text, True, (211, 84, 0))
             outline_rect = outline_surf.get_rect(center=(SCREEN_WIDTH // 2 + dx, 120 + dy))
             self.screen.blit(outline_surf, outline_rect)
-        
+
         self.screen.blit(title_surf, title_rect)
-        
-        # Subtitle
+
         subtitle_surf = self.title_font.render(subtitle_text, True, ORANGE)
         subtitle_rect = subtitle_surf.get_rect(center=(SCREEN_WIDTH // 2, 200))
-        
+
         for dx, dy in [(-3, -3), (-3, 3), (3, -3), (3, 3)]:
             outline_surf = self.title_font.render(subtitle_text, True, (211, 84, 0))
             outline_rect = outline_surf.get_rect(center=(SCREEN_WIDTH // 2 + dx, 200 + dy))
             self.screen.blit(outline_surf, outline_rect)
-        
+
         self.screen.blit(subtitle_surf, subtitle_rect)
-        
-        # Instructions
+
         instructions = [
             "Tapez la lettre sur chaque Devil Fruit!",
             "",
@@ -370,7 +482,7 @@ class Game:
             "Ratez 3 fruits = Game Over",
             "",
         ]
-        
+
         y = 280
         for line in instructions:
             if line:
@@ -378,202 +490,203 @@ class Game:
                 text_rect = text_surf.get_rect(center=(SCREEN_WIDTH // 2, y))
                 self.screen.blit(text_surf, text_rect)
             y += 32
-        
-        # Pulsing "Press SPACE"
+
         pulse = abs(math.sin(pygame.time.get_ticks() / 300))
         start_text = self.large_font.render("Appuyez sur ESPACE", True, (255, int(pulse * 255), 0))
         start_rect = start_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
         self.screen.blit(start_text, start_rect)
-    
+
     def draw_playing(self):
+        """Draw the gameplay screen."""
         self.screen.fill(SKY_BLUE)
-        
-        # Draw clouds
+
         for i in range(5):
             cloud_x = (i * 250 + (pygame.time.get_ticks() // 50) % 250) % SCREEN_WIDTH
             self.draw_cloud(self.screen, cloud_x, 50 + i * 80, 120, 60)
-        
-        # Draw score
+
+        # Score
         score_bg = pygame.Rect(20, 20, 200, 100)
         pygame.draw.rect(self.screen, ORANGE, score_bg, border_radius=15)
         pygame.draw.rect(self.screen, (211, 84, 0), score_bg, 4, border_radius=15)
-        
+
         score_label = self.small_font.render("SCORE", True, WHITE)
-        score_value = self.large_font.render(f"{self.score:04d}", True, WHITE)
+        score_display = min(self.score, 99999)
+        score_value = self.large_font.render(f"{score_display}", True, WHITE)
         self.screen.blit(score_label, (score_bg.centerx - score_label.get_width() // 2, score_bg.y + 15))
         self.screen.blit(score_value, (score_bg.centerx - score_value.get_width() // 2, score_bg.y + 45))
-        
-        # Draw strikes
+
+        # Strikes
         strike_x = SCREEN_WIDTH - 220
         strike_y = 20
-        
+
         for i in range(3):
             x_offset = self.strike_shake[i]
             strike_rect = pygame.Rect(strike_x + i * 60 + x_offset, strike_y, 50, 50)
-            
+
             if i < self.strikes:
                 pygame.draw.rect(self.screen, RED, strike_rect, border_radius=10)
-                # Draw X
-                pygame.draw.line(self.screen, WHITE, 
-                               (strike_rect.left + 10, strike_rect.top + 10),
-                               (strike_rect.right - 10, strike_rect.bottom - 10), 5)
                 pygame.draw.line(self.screen, WHITE,
-                               (strike_rect.right - 10, strike_rect.top + 10),
-                               (strike_rect.left + 10, strike_rect.bottom - 10), 5)
+                                 (strike_rect.left + 10, strike_rect.top + 10),
+                                 (strike_rect.right - 10, strike_rect.bottom - 10), 5)
+                pygame.draw.line(self.screen, WHITE,
+                                 (strike_rect.right - 10, strike_rect.top + 10),
+                                 (strike_rect.left + 10, strike_rect.bottom - 10), 5)
             else:
                 pygame.draw.rect(self.screen, WHITE, strike_rect, 3, border_radius=10)
-        
+
         # Frozen time indicator
         if self.frozen_time > pygame.time.get_ticks():
             frozen_bg = pygame.Rect(SCREEN_WIDTH // 2 - 120, 20, 240, 60)
             pygame.draw.rect(self.screen, (173, 216, 230), frozen_bg, border_radius=10)
             pygame.draw.rect(self.screen, WHITE, frozen_bg, 3, border_radius=10)
-            
-            frozen_text = self.medium_font.render("❄️ TEMPS GELÉ ❄️", True, (0, 0, 139))
-            self.screen.blit(frozen_text, (frozen_bg.centerx - frozen_text.get_width() // 2, frozen_bg.y + 15))
-        
-        # Draw combo
+
+            frozen_text = self.medium_font.render("TEMPS GELE", True, (0, 0, 139))
+            self.screen.blit(frozen_text,
+                             (frozen_bg.centerx - frozen_text.get_width() // 2, frozen_bg.y + 15))
+
+        # Combo
         if self.combo > 1 and pygame.time.get_ticks() - self.combo_display_time < 1500:
             combo_scale = 1 + 0.3 * math.sin((pygame.time.get_ticks() - self.combo_display_time) / 100)
             combo_text = self.large_font.render(f"COMBO x{self.combo}!", True, YELLOW)
-            combo_size = (int(combo_text.get_width() * combo_scale), int(combo_text.get_height() * combo_scale))
+            combo_size = (int(combo_text.get_width() * combo_scale),
+                          int(combo_text.get_height() * combo_scale))
             combo_scaled = pygame.transform.scale(combo_text, combo_size)
             combo_rect = combo_scaled.get_rect(center=(SCREEN_WIDTH // 2, 150))
-            
-            # Draw outline
+
             for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2)]:
                 outline_text = self.large_font.render(f"COMBO x{self.combo}!", True, ORANGE)
                 outline_scaled = pygame.transform.scale(outline_text, combo_size)
                 outline_rect = outline_scaled.get_rect(center=(SCREEN_WIDTH // 2 + dx, 150 + dy))
                 self.screen.blit(outline_scaled, outline_rect)
-            
+
             self.screen.blit(combo_scaled, combo_rect)
-        
-        # Draw fruits
-        frozen = self.frozen_time > pygame.time.get_ticks()
+
+        # Fruits
         self.fruits = [f for f in self.fruits if f.draw(self.screen, self.letter_font)]
-        
-        # Draw particles
+
+        # Particles
         for particle in self.particles:
             particle.draw(self.screen)
-        
+
     def draw_gameover(self):
+        """Draw the game over screen."""
         self.screen.fill(SKY_BLUE)
-        
-        # Draw clouds
+
         for i in range(5):
             cloud_x = (i * 250 + (pygame.time.get_ticks() // 50) % 250) % SCREEN_WIDTH
             self.draw_cloud(self.screen, cloud_x, 50 + i * 80, 120, 60)
-        
-        # Game Over text
+
         gameover_text = self.title_font.render("GAME OVER", True, RED)
         gameover_rect = gameover_text.get_rect(center=(SCREEN_WIDTH // 2, 180))
-        
-        # Outline
+
         for dx, dy in [(-4, -4), (-4, 4), (4, -4), (4, 4)]:
             outline_surf = self.title_font.render("GAME OVER", True, (150, 0, 0))
             outline_rect = outline_surf.get_rect(center=(SCREEN_WIDTH // 2 + dx, 180 + dy))
             self.screen.blit(outline_surf, outline_rect)
-        
+
         self.screen.blit(gameover_text, gameover_rect)
-        
-        # Final score
+
         score_text = self.large_font.render(f"Score Final: {self.score}", True, BLACK)
         score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, 300))
         self.screen.blit(score_text, score_rect)
-        
-        # Restart prompt
+
         pulse = abs(math.sin(pygame.time.get_ticks() / 300))
         restart_text = self.medium_font.render("ESPACE pour rejouer", True, (0, int(pulse * 200), 0))
         restart_rect = restart_text.get_rect(center=(SCREEN_WIDTH // 2, 400))
         self.screen.blit(restart_text, restart_rect)
-        
-        # Press ESC to quit
+
         quit_text = self.small_font.render("ESC pour quitter", True, BLACK)
         quit_rect = quit_text.get_rect(center=(SCREEN_WIDTH // 2, 460))
         self.screen.blit(quit_text, quit_rect)
-    
+
     def handle_events(self):
+        """Handle pygame events."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
-            
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return False
-                
+
                 if self.state == 'menu':
                     if event.key == pygame.K_SPACE:
+                        stop_music()
+                        play_sound('start')
                         self.state = 'playing'
                         self.reset_game()
-                
+
                 elif self.state == 'playing':
-                    # Try to slice fruits
                     self.slice_fruits(event.key)
-                
+
                 elif self.state == 'gameover':
                     if event.key == pygame.K_SPACE:
                         self.state = 'menu'
-        
+                        play_music('menu_music', loop=False)
+
         return True
-    
+
     def update(self):
+        """Update game state."""
         if self.state == 'playing':
-            # Spawn fruits
             current_time = pygame.time.get_ticks()
             if current_time - self.spawn_timer > self.spawn_interval:
                 if not (self.frozen_time > current_time):
                     self.spawn_fruit()
                     self.spawn_timer = current_time
-            
-            # Update fruits
+                    # Increase difficulty: reduce spawn interval every 5 points
+                    if self.spawn_interval > self.min_spawn_interval:
+                        self.spawn_interval = max(
+                            self.min_spawn_interval,
+                            1200 - (self.score // 5) * 50
+                        )
+
             frozen = self.frozen_time > current_time
             for fruit in self.fruits:
                 fruit.update(frozen)
-            
-            # Check for missed fruits (fruits that fell below screen)
+
             missed = [f for f in self.fruits if f.is_missed() and 'type' not in f.data]
             if missed:
                 self.strikes += len(missed)
-                # Shake effect for strikes
+                play_sound('miss')
                 for i in range(min(len(missed), 3)):
                     if self.strikes - len(missed) + i < 3:
                         self.strike_shake[self.strikes - len(missed) + i] = 5
-                
+
                 if self.strikes >= 3:
                     self.state = 'gameover'
-            
-            # Remove missed fruits
+                    play_sound('gameover')
+
             self.fruits = [f for f in self.fruits if not f.is_missed()]
-            
-            # Update particles
+
             for particle in self.particles:
                 particle.update()
             self.particles = [p for p in self.particles if not p.is_finished()]
-            
-            # Update strike shake
+
             for i in range(3):
                 if self.strike_shake[i] > 0:
                     self.strike_shake[i] -= 1
-    
+
     def draw(self):
+        """Draw current game state."""
         if self.state == 'menu':
             self.draw_menu()
         elif self.state == 'playing':
             self.draw_playing()
         elif self.state == 'gameover':
             self.draw_gameover()
-        
+
         pygame.display.flip()
-    
+
     def run(self):
+        """Main game loop."""
         running = True
         while running:
             running = self.handle_events()
             self.update()
             self.draw()
             self.clock.tick(FPS)
-        
+
         pygame.quit()
         sys.exit()
 
