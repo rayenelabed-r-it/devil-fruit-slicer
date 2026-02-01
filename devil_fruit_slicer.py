@@ -16,14 +16,12 @@ import numpy as np # Pour la synthèse audio
 import wave        # Pour créer des fichiers WAV
 import io          # Pour gérer les flux de données
 
-# ─────────────────────────────────────────────
 # INITIALISATION DE PYGAME
-# ─────────────────────────────────────────────
+
 pygame.init()  # Démarre tous les modules Pygame
 
-# ─────────────────────────────────────────────
 # CONSTANTES DU JEU
-# ─────────────────────────────────────────────
+
 # Dimensions de la fenêtre du jeu
 SCREEN_WIDTH  = 800
 SCREEN_HEIGHT = 600
@@ -47,9 +45,9 @@ DARK_BLACK  = (44, 34, 54)              # Noir foncé (Yami Yami)
 STRAW_HAT_YELLOW = (255, 223, 0)        # Jaune chapeau de paille
 PIRATE_FLAG_BLACK = (20, 20, 20)        # Noir du drapeau pirate
 
-# ─────────────────────────────────────────────
+
 # FICHIERS AUDIO ONE PIECE
-# ─────────────────────────────────────────────
+
 # Chemins vers les fichiers MP3 One Piece pour les effets sonores
 SOUND_FILES = {
     'victory':   r'C:\Users\labed\Desktop\assets\sounds\harbour_village.mp3',  # Son de victoire (combo/rare)
@@ -59,9 +57,9 @@ SOUND_FILES = {
     'levelup':   r'C:\Users\labed\Desktop\assets\sounds\gomu_gomu_no.mp3',     # Son de montée de niveau
 }
 
-# ─────────────────────────────────────────────
+
 # IMAGES DES PERSONNAGES ONE PIECE (décoration du menu)
-# ─────────────────────────────────────────────
+
 ONE_PIECE_IMAGES = [
     r'C:\Users\labed\Downloads\caa5abf2a4d5718806c925fd7fc730fe.png',
     r'C:\Users\labed\Downloads\71e2b1cef174820602aa8026118d7702.png',
